@@ -23,7 +23,7 @@ def get_cf_speed_test_ip(timeout=10, max_retries=5):
     for attempt in range(max_retries):
         try:
             # 发送 GET 请求，设置超时
-            response = requests.get('https://ip.164746.xyz/ipTop.html', timeout=timeout)
+            response = requests.get('https://ip.164746.xyz/ipTop10.html', timeout=timeout)
             # 检查响应状态码
             if response.status_code == 200:
                 return response.text
@@ -34,14 +34,14 @@ def get_cf_speed_test_ip(timeout=10, max_retries=5):
     return None
 
 # 获取 DNS 记录
-def get_dns_records(name):
+def get_dns_records(names):
     def_info = []
     url = f'https://api.cloudflare.com/client/v4/zones/{CF_ZONE_ID}/dns_records'
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         records = response.json()['result']
         for record in records:
-            if record['name'] == name:
+            if record['name'] in names:
                 def_info.append(record['id'])
         return def_info
     else:
@@ -86,16 +86,20 @@ def push_plus(content):
 def main():
     # 获取最新优选IP
     ip_addresses_str = get_cf_speed_test_ip()
-    ip_addresses = ip_addresses_str.split(',')
-    dns_records = get_dns_records(CF_DNS_NAME)
+    ip_addresses = [ip for ip in ip_addresses_str.split(',') if ip]
+    names = CF_DNS_NAME.split(',')
+    dns_records = get_dns_records(names)
     push_plus_content = []
     # 遍历 IP 地址列表
-    for index, ip_address in enumerate(ip_addresses):
+    ip_addresses_len = len(ip_addresses)
+    for index, dns_record in enumerate(dns_records):
+        if ip_addresses_len <= index:
+            break
         # 执行 DNS 变更
-        dns = update_dns_record(dns_records[index], CF_DNS_NAME, ip_address)
+        dns = update_dns_record(dns_record, names[index], ip_addresses[index])
         push_plus_content.append(dns)
 
-    push_plus('\n'.join(push_plus_content))
+    # push_plus('\n'.join(push_plus_content))
 
 if __name__ == '__main__':
     main()
